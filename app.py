@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 # Load the data
-data = pd.read_csv('/content/特実_国内文献.csv')
+data = pd.read_csv('/特実_国内文献.csv')
 
 # Streamlit app setup
 st.set_page_config(page_title="特許庁データ分析", layout="wide")
