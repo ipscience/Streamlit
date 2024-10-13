@@ -1,0 +1,103 @@
+import streamlit as st
+import google.generativeai as genai
+import google.ai.generativelanguage as glm
+from openai import OpenAI
+import os
+
+# 環境変数からAPIキーを取得
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+
+# ページの設定
+st.set_page_config(
+    page_title="AI チャットボット",
+    page_icon="🐤"
+)
+
+st.title("🐤 AI チャットボット")
+
+# API選択
+api_choice = st.selectbox(
+    "使用するAIを選択してください:",
+    ("OpenAI ChatGPT", "Google Gemini")
+)
+
+# APIキーの確認とセッションの初期化
+if api_choice == "OpenAI ChatGPT":
+    if not OPENAI_API_KEY:
+        st.error("OpenAI APIキーが設定されていません。")
+    else:
+        client = OpenAI(api_key=OPENAI_API_KEY)
+        if "chat_session_openai" not in st.session_state:
+            st.session_state["chat_session_openai"] = [
+                {"role": "system", "content": "あなたは優秀なAIアシスタントです。できるだけ簡潔に回答してください。"},
+                {"role": "assistant", "content": "わかりました。"}
+            ]
+            st.session_state["chat_history_openai"] = []
+else:  # Google Gemini
+    if not GOOGLE_API_KEY:
+        st.error("Google APIキーが設定されていません。")
+    else:
+        genai.configure(api_key=GOOGLE_API_KEY)
+        if "chat_session_gemini" not in st.session_state:
+            model = genai.GenerativeModel('gemini-pro')
+            st.session_state["chat_session_gemini"] = model.start_chat(history=[
+                glm.Content(role="user", parts=[glm.Part(text="あなたは優秀なAIアシスタントです。できるだけ簡潔に回答してください。")]),
+                glm.Content(role="model", parts=[glm.Part(text="わかりました。")])
+            ])
+            st.session_state["chat_history_gemini"] = []
+
+# チャット履歴の表示
+if api_choice == "OpenAI ChatGPT":
+    for message in st.session_state.get("chat_history_openai", []):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+else:
+    for message in st.session_state.get("chat_history_gemini", []):
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+# ユーザー入力送信後処理
+if prompt := st.chat_input("ここに入力してください"):
+    if api_choice == "OpenAI ChatGPT" and OPENAI_API_KEY:
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state["chat_history_openai"].append({"role": "user", "content": prompt})
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=st.session_state["chat_session_openai"] + [{"role": "user", "content": prompt}]
+            )
+            bot_message = response.choices[0].message.content
+            st.session_state["chat_session_openai"].append({"role": "user", "content": prompt})
+            st.session_state["chat_session_openai"].append({"role": "assistant", "content": bot_message})
+        except Exception as e:
+            bot_message = f"エラーが発生しました: {e}"
+        with st.chat_message("assistant"):
+            st.markdown(bot_message)
+        st.session_state["chat_history_openai"].append({"role": "assistant", "content": bot_message})
+
+    elif api_choice == "Google Gemini" and GOOGLE_API_KEY:
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state["chat_history_gemini"].append({"role": "user", "content": prompt})
+        try:
+            response = st.session_state["chat_session_gemini"].send_message(prompt)
+            response_text = response.text
+        except Exception as e:
+            response_text = f"エラーが発生しました: {e}"
+        with st.chat_message("assistant"):
+            st.markdown(response_text)
+        st.session_state["chat_history_gemini"].append({"role": "assistant", "content": response_text})
+
+# チャット履歴をクリアするボタン
+if st.button("チャット履歴をクリア"):
+    if api_choice == "OpenAI ChatGPT":
+        st.session_state["chat_history_openai"] = []
+    else:
+        st.session_state["chat_history_gemini"] = []
+    st.experimental_rerun()
+
+# APIキーが設定されていない場合の警告
+if not OPENAI_API_KEY and not GOOGLE_API_KEY:
+    st.warning("APIキーが設定されていません。")
