@@ -24,7 +24,7 @@ selected_applicant = st.sidebar.multiselect(
 
 # Filter Data
 filtered_data = data[
-    (data['ステージ'].isin(selected_stage)) & 
+    (data['ステージ'].isin(selected_stage)) &
     (data['出願人/権利者'].isin(selected_applicant))
 ]
 
@@ -48,7 +48,7 @@ fig_stage = px.bar(
     labels={'Stage': 'Patent Stage', 'Count': 'Number of Patents'},
     template="plotly_white"
 )
-st.plotly_chart(fig_stage, use_container_width=True)
+st.plotly_chart(fig_stage, use_container_width=True)  # Ensure the correct variable is used.
 
 # Visualization 3: Publication Year Analysis
 filtered_data['公知日'] = pd.to_datetime(filtered_data['公知日'], errors='coerce')
@@ -72,23 +72,24 @@ def get_identifier(patent_number):
     else:
         return 'unknown'
 
-# Function to extract the numerical part of the document number
-def get_numerical_doc_number(patent_number):
-    # Remove the first two characters and extract the rest
-    return ''.join(filter(str.isdigit, patent_number[2:]))
+# Function to exclude the first two characters from doc_number and create links
+def modify_doc_number(doc_number):
+    # Exclude the first two characters
+    modified_doc_number = doc_number[2:]
+    return modified_doc_number
 
-# Display links to patents
-st.write("### Patent Links")
+# Display links to patents with the modified document number
+st.write("### Patent Links (Modified Doc Number)")
 for _, row in filtered_data.iterrows():
     # Extract patent number from the 文献番号 column
     doc_number = row['文献番号']
     identifier = get_identifier(doc_number)
+
+    # Modify the document number by removing the first two characters
+    modified_doc_number = modify_doc_number(doc_number)
+
+    # Construct the URL with the modified document number
+    doc_url = f"https://www.j-platpat.inpit.go.jp/c1801/PU/JP-{modified_doc_number}/{identifier}/ja"
     
-    # Get the numerical part of the document number
-    numerical_doc_number = get_numerical_doc_number(doc_number)
-    
-    # Construct the URL
-    doc_url = f"https://www.j-platpat.inpit.go.jp/c1801/PU/JP-{numerical_doc_number}/{identifier}/ja"
-    
-    # Display the link with 文献番号 and 発明の名称
+    # Display the link with the modified 文献番号 and 発明の名称
     st.markdown(f"[{row['文献番号']} - {row['発明の名称']}]({doc_url})")
